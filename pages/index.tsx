@@ -5,15 +5,14 @@ import { generateId, generateDiceBearAvatar } from '../utils/helpers';
 import { User } from '../types';
 
 // SignIn Page (/)
-// The entry point for Phase 1. Since we have no database, we generate
-// an "in-memory" session by creating a User object and storing it in localStorage.
+// Redesigned: Removed bright green gradients/shadows.
+// Replaced with a stark, minimal card commonly seen in enterprise SaaS (e.g. Linear/Vercel).
 export default function SignIn() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // If a user is already "logged in", automatically redirect them to the chat page.
   useEffect(() => {
     const savedUser = localStorage.getItem('syncforge_user');
     if (savedUser) {
@@ -27,18 +26,14 @@ export default function SignIn() {
 
     setIsLoading(true);
 
-    // Create a new User object.
-    // If no avatar is provided, generate a cute fallback using DiceBear
     const newUser: User = {
       id: generateId(),
       name: name.trim(),
       avatar: avatarUrl.trim() || generateDiceBearAvatar(name.trim()),
     };
 
-    // Store in localStorage to simulate an active session
     localStorage.setItem('syncforge_user', JSON.stringify(newUser));
     
-    // Using a tiny timeout just to show the loading state for UX polish
     setTimeout(() => {
       router.push('/chat');
     }, 500);
@@ -47,36 +42,31 @@ export default function SignIn() {
   return (
     <>
       <Head>
-        <title>Sign In | SyncForge</title>
+        <title>SyncForge | Login</title>
       </Head>
       
-      {/* Background with a subtle gradient for a premium feel */}
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 font-sans">
+      {/* Background: Solid light gray #f3f4f6 instead of gradient, enforcing a calm baseline */}
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 font-sans">
         
-        {/* Main Card */}
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden transform transition-all">
+        {/* Main Card: Pure white, subtle border, absolutely no heavy shadow drops */}
+        <div className="w-full max-w-sm bg-white rounded-[16px] shadow-sm border border-gray-200 overflow-hidden">
           
           <div className="p-8">
-            {/* Visual Header */}
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-200">
-                <span className="text-white font-bold text-3xl leading-none">S</span>
-              </div>
+            {/* Visual Header: Replaced large green square with a minimal monochrome text logo */}
+            <div className="flex justify-center mb-8">
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                SyncForge<span className="text-gray-300">.</span>
+              </h1>
             </div>
             
-            <h1 className="text-2xl font-extrabold text-center text-gray-800 mb-2 tracking-tight">
-              Welcome to SyncForge
-            </h1>
-            <p className="text-center text-gray-500 text-sm mb-8">
-              Enter your details to join the real-time chat workspace.
+            <p className="text-center text-gray-500 text-sm mb-6 font-medium">
+              Enter your details to join the workspace.
             </p>
 
-            {/* Entry Form */}
-            <form onSubmit={handleJoin} className="space-y-5">
+            <form onSubmit={handleJoin} className="space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center space-x-1">
-                  <span>Display Name</span>
-                  <span className="text-red-500">*</span>
+                <label htmlFor="name" className="block text-[13px] font-semibold text-gray-700 mb-1.5">
+                  Display Name
                 </label>
                 <input
                   id="name"
@@ -84,14 +74,15 @@ export default function SignIn() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Jane Doe"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all placeholder:text-gray-400 font-medium"
+                  placeholder="Jane Doe"
+                  // Input: Soft border, no heavy focus rings. Just a subtle change in border color to near-black.
+                  className="w-full px-3 py-2.5 rounded-[12px] border border-gray-200 bg-white text-gray-900 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors placeholder:text-gray-400 text-sm"
                 />
               </div>
 
               <div>
-                <label htmlFor="avatar" className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Avatar URL (Optional)
+                <label htmlFor="avatar" className="block text-[13px] font-semibold text-gray-700 mb-1.5">
+                  Avatar URL <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   id="avatar"
@@ -99,27 +90,30 @@ export default function SignIn() {
                   value={avatarUrl}
                   onChange={(e) => setAvatarUrl(e.target.value)}
                   placeholder="https://example.com/avatar.jpg"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all placeholder:text-gray-400 font-medium"
+                  className="w-full px-3 py-2.5 rounded-[12px] border border-gray-200 bg-white text-gray-900 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors placeholder:text-gray-400 text-sm"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={!name.trim() || isLoading}
-                className="w-full py-3.5 px-4 bg-green-500 hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-green-200 flex items-center justify-center space-x-2 mt-4"
-              >
-                {isLoading ? (
-                  <span className="block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                ) : (
-                  <span>Continue to App</span>
-                )}
-              </button>
+              <div className="pt-2">
+                {/* Button: Severe contrast (black/white) instead of bright green. Standard premium SaaS move. */}
+                <button
+                  type="submit"
+                  disabled={!name.trim() || isLoading}
+                  className="w-full py-2.5 px-4 bg-gray-900 hover:bg-black disabled:bg-gray-100 disabled:text-gray-400 text-white text-sm font-semibold rounded-[12px] transition-colors flex items-center justify-center"
+                >
+                  {isLoading ? (
+                    <span className="block w-4 h-4 border-2 border-gray-400 border-t-gray-800 rounded-full animate-spin"></span>
+                  ) : (
+                    <span>Continue</span>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
           
-          <div className="bg-gray-50 px-8 py-4 border-t border-gray-100">
-            <p className="text-xs text-center text-gray-400 font-medium">
-              Phase 1: Temporary in-memory session. Data is lost upon closing.
+          <div className="bg-gray-50/50 px-8 py-4 border-t border-gray-100">
+            <p className="text-[11px] text-center text-gray-400">
+              Session is temporary and in-memory only.
             </p>
           </div>
         </div>

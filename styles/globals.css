@@ -1,15 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #22c55e;
-  --color-primary-dark: #16a34a;
-  --color-background: #f5f5f5;
-  --color-surface: #ffffff;
-  --color-text-main: #111827;
-  --color-border: #e5e7eb;
+  /* 
+    Redefined Theme to Premium SaaS (Linear/Notion inspired) 
+    Why: A serious SaaS product needs to reduce cognitive load. 
+    Grayscale palettes allow the actual content (messages) to be the focus 
+    rather than loud UI elements. WhatsApp style is for consumer apps; 
+    SaaS style requires calm, minimal, and serious tones.
+  */
+  --color-primary: #10b981; /* Soft emerald, strictly for minimal accenting */
+  --color-primary-dark: #059669;
+  --color-background: #f3f4f6; /* Main light gray background */
+  --color-surface: #ffffff; /* Pure white for secondary panels */
+  --color-text-main: #111827; /* Near black for primary text to ensure crisp readability */
+  --color-text-muted: #6b7280; /* Muted gray for secondary text */
+  --color-border: #e5e7eb; /* Soft gray borders */
 }
 
-/* Base styles to ensure clean, consistent typography and layout */
 html, body {
   margin: 0;
   padding: 0;
@@ -18,10 +25,9 @@ html, body {
   color: var(--color-text-main);
   height: 100vh;
   width: 100vw;
-  overflow: hidden; /* Prevent body scrolling; handle scrolling inside specific containers */
+  overflow: hidden;
 }
 
-/* Custom scrollbar for a polished, premium look */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -30,11 +36,12 @@ html, body {
   background: transparent;
 }
 
+/* Scrollbars should be subtle and out of the way */
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #e5e7eb;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #d1d5db;
 }

@@ -14,6 +14,7 @@ export const formatTime = (isoString: string): string => {
 };
 
 // Creates a fallback avatar URL using DiceBear API if the user doesn't provide one
+// Redesigned: Removed bright green background (22c55e). Replaced with dark gray (111827) for SaaS look.
 export const generateDiceBearAvatar = (seed: string): string => {
-  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=22c55e`;
+  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=111827`;
 };

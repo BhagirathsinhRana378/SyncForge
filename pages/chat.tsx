@@ -6,7 +6,7 @@ import { Sidebar } from '../components/Sidebar';
 import { ChatWindow } from '../components/ChatWindow';
 import { socket } from '../utils/socket';
 import { User, Room, Message } from '../types';
-import { generateId } from '../utils/helpers';
+import { generateDiceBearAvatar, generateId } from '../utils/helpers';
 
 // Main Chat Application Page (/chat)
 // This serves as the orchestrator component for all chat functionalities.
@@ -120,7 +120,7 @@ export default function ChatApp() {
       ...additionalMembers.map(mName => ({
         id: generateId(),
         name: mName,
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(mName)}&backgroundColor=22c55e`
+        avatar: generateDiceBearAvatar(mName)
       }))
     ];
 
@@ -148,7 +148,7 @@ export default function ChatApp() {
         {
           id: generateId(),
           name: username,
-          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(username)}&backgroundColor=22c55e`
+          avatar: generateDiceBearAvatar(username)
         }
       ]
     };
@@ -162,7 +162,7 @@ export default function ChatApp() {
   if (isInitializing) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50">
-        <span className="block w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></span>
+        <span className="block w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></span>
       </div>
     );
   }
