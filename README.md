@@ -109,7 +109,7 @@ This project is built step-by-step to ensure strong fundamentals:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/BhagirathsinhRana1288/SyncForge.git
+git clone https://github.com/BhagirathsinhRana378/SyncForge.git
 cd SyncForge
 ```
 
