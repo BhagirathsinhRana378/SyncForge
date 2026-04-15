@@ -3,14 +3,25 @@ export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 9);
 };
 
-// Formats an ISO timestamp into a readable time string (e.g. "10:30 AM")
-export const formatTime = (isoString: string): string => {
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch (error) {
-    return "";
-  }
+/*
+ * ARCHITECTURE COMMENT:
+ * Why invalid dates occur:
+ * - Depending on the browser/OS, passing a non-standard or malformed string into `new Date()` can fail, yielding NaN or "Invalid Date" output on the UI.
+ * Why ISO format is reliable:
+ * - `toISOString()` establishes a strict, globally recognized standard (YYYY-MM-DDTHH:mm:ss.sssZ) that is 
+ *   natively parsable by all modern JS runtime environments safely, guaranteeing reliable conversions everywhere.
+ */
+export const formatTime = (time: string): string => {
+  if (!time) return "";
+
+  const date = new Date(time);
+
+  if (isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 };
 
 // Creates a fallback avatar URL using DiceBear API if the user doesn't provide one

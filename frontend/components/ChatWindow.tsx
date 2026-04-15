@@ -41,12 +41,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     );
   }
 
-  const getSender = (senderId: string): User | undefined => {
-    return currentRoom.members.find(m => m.id === senderId);
+  const getSender = (message: Message): User | undefined => {
+    let user = currentRoom.members.find(m => m.id === message.from);
+    if (!user && message.senderName) {
+      user = { 
+        id: message.from, 
+        name: message.senderName, 
+        // fallback avatar if direct chat doesn't push avatar string
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${message.senderName}`
+      };
+    }
+    return user;
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white relative">
+    <div className="flex-1 flex flex-col h-full relative" style={{ background: "linear-gradient(to bottom, #f8fafc, #eef2f7)" }}>
       
       {/* Header bar: Sleek white, minimal text */}
       <div className="h-14 bg-white border-b border-gray-200 flex items-center px-6 sticky top-0 z-10 flex-shrink-0">
@@ -63,7 +72,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
       </div>
 
-      {/* Messages area: Solid white background for maximum contrast like Linear or Slack */}
+      {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
         <div className="max-w-4xl mx-auto flex flex-col">
           {messages.length === 0 ? (
@@ -73,15 +82,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           ) : (
             messages.map((message, index) => {
-              const isOwnMessage = message.senderId === currentUser.id;
-              const sender = getSender(message.senderId);
+              const isOwnMessage = message.from === currentUser.id;
+              const originalSender = getSender(message);
+              
+              const sender = originalSender ? {
+                 ...originalSender,
+                 name: isOwnMessage ? "You" : originalSender.name
+              } : undefined;
               
               const previousMessage = index > 0 ? messages[index - 1] : null;
-              const isNewSenderSequence = !previousMessage || previousMessage.senderId !== message.senderId;
+              const isNewSenderSequence = !previousMessage || previousMessage.from !== message.from;
 
               return (
                 <MessageBubble
-                  key={message.id}
+                  key={message.id || index}
                   message={message}
                   isOwnMessage={isOwnMessage}
                   sender={sender}

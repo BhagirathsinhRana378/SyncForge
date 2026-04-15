@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { ChatLayout } from '../components/ChatLayout';
@@ -16,8 +16,22 @@ export default function ChatApp() {
   const [isInitializing, setIsInitializing] = useState(true);
   
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  // ✅ REQUIRED FIX: GLOBAL MESSAGE STORE
   const [messages, setMessages] = useState<Message[]>([]);
+  
+  // 🎯 FEATURE 1: Maintain active users list
+  const [onlineUsers, setOnlineUsers] = useState<{username: string; socketId: string, avatar?: string}[]>([]);
+  
+  // 🧠 UX IMPROVEMENT: Track unread counts per chat
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // 🎯 FEATURE 3: Chat context management instead of just currentRoomId
+  // The context tracks whether we are chatting in a group/room or directly with another user
+  const [activeChat, setActiveChat] = useState<{
+    type: "direct" | "room";
+    id: string; // socketId if direct, roomId if room
+    name?: string; // Username for direct or room name
+  } | null>(null);
 
   // 1. Session Validation: Check if the user is "logged in"
   useEffect(() => {
@@ -37,84 +51,142 @@ export default function ChatApp() {
     // Connect to the Socket.IO server once we confirm the user
     socket.connect();
 
+    // 🎯 FRONTEND FIX 1: REGISTER USER AFTER CONNECT
+    /*
+     * 🧠 CORE ISSUE EXPLANATION:
+     * - Socket connection ≠ user identity. A connection simply opens a raw TCP tunnel to the server.
+     * - The username must be manually registered via an event (e.g. "register_user") to pass the app-level identity.
+     * - The backend must store a mapping of socketId -> user to bridge the transport layer to the app logic.
+     * - Without this, the system cannot:
+     *    1. Show online users (since the server only knows raw socket strings, not who they are).
+     *    2. Route messages correctly (since direct messaging relies on sending to a specific identity's socket).
+     */
+    const handleRegister = () => {
+      /*
+       * COMMENT:
+       * Why registration must happen after socket connects:
+       * - Calling emit immediately might fail because the socket connection (TCP handshake, etc.) 
+       *   takes a few milliseconds to establish.
+       * - Waiting for the "connect" event ensures the pipe is open before sending data.
+       */
+      socket.emit("register_user", currentUser.name);
+    };
+
+    if (socket.connected) {
+      handleRegister();
+    } else {
+      socket.on("connect", handleRegister);
+    }
+
+    // 🎯 FRONTEND FIX 2: RECEIVE ONLINE USERS
+    socket.on('online_users', (users: {username: string; socketId: string}[]) => {
+      // ⚠️ DEBUG REQUIREMENTS:
+      console.log("Users received:", users);
+      // Filter out our own user to prevent chatting with ourselves
+      setOnlineUsers(users.filter(u => u.socketId !== socket.id));
+    });
+
     // Listen for the initial list of rooms available
     socket.on('room_list', (serverRooms: Room[]) => {
       setRooms(serverRooms);
       
-      // Auto-select the first group room "General" if it exists, for a better initial UX
-      if (serverRooms.length > 0 && !currentRoomId) {
+      // Auto-select the first group room "General" if no active chat
+      if (serverRooms.length > 0 && !activeChat) {
         const generalRoom = serverRooms.find(r => r.name === 'General');
         handleSelectRoom(generalRoom ? generalRoom.id : serverRooms[0].id);
       }
     });
 
-    // Listen for incoming messages
-    socket.on('receive_message', (newMessage: Message) => {
-      // We only want to display the message if it belongs to the room we are actively viewing
-      setMessages((prevMessages) => {
-        // Simple deduplication based on ID (optional, but good practice)
-        if (prevMessages.some(m => m.id === newMessage.id)) return prevMessages;
-        return [...prevMessages, newMessage];
-      });
-    });
+    // 🎯 FRONTEND FIX 6: RECEIVE MESSAGE
+    const receiveMessageHandler = (data: Message) => {
+      console.log("Incoming message:", data);
 
-    // Listen for updates to a room (e.g., when someone joins or leaves)
+      /*
+       * COMMENT REQUIRED:
+       * Why messages must be stored globally:
+       * - We want messages to always be received and tracked so they aren't lost if the user is looking at a different chat.
+       * - It enables unread counts and ensures data availability when the user switches tabs instantly.
+       * Why filtering should not happen here:
+       * - Storing all messages gives us complete chat history in a single source of truth. We filter at render-time.
+       */
+      // ALWAYS store message, regardless of active chat
+      setMessages((prev) => [...prev, data]);
+      
+      // Update unread counts if we are not actively in that chat
+      if (data.from !== socket.id) {
+        const chatScopeId = data.roomId ? data.roomId : data.from;
+        setUnreadCounts(prev => ({
+          ...prev,
+          [chatScopeId]: (prev[chatScopeId] || 0) + 1
+        }));
+      }
+    };
+    
+    socket.on('receive_message', receiveMessageHandler);
+
     socket.on('room_updated', (updatedRoom: Room) => {
       setRooms(prevRooms => prevRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
     });
 
-    // We emit an event to tell the backend we came online.
-    // The backend might send back 'room_list' immediately.
-    socket.emit('user_connected', currentUser);
-
-    // Cleanup: Remove listeners when the component unmounts
+    /*
+     * COMMENT REQUIRED:
+     * Why cleanup is mandatory:
+     * - When the component unmounts or re-renders, the `useEffect` hook runs again and re-registers listeners.
+     * - Without `socket.off()`, multiple identical listeners compound silently in the background mapping multiple callbacks per single event.
+     * What happens without cleanup (duplicate messages):
+     * - Every time the server broadcasts one message, the frontend fires the listener dozens of times, resulting in heavily duplicated UI entries and rapid UI crashes.
+     */
     return () => {
+      socket.off('connect', handleRegister);
+      socket.off('online_users');
       socket.off('room_list');
-      socket.off('receive_message');
+      socket.off('receive_message', receiveMessageHandler);
       socket.off('room_updated');
       socket.disconnect();
     };
-  }, [currentUser]); // Note: In a real app we'd carefully manage dependency array to avoid reconnects
+  }, [currentUser]);
 
-  // 3. Changing Rooms
+  // 3. Changing Contexts
   const handleSelectRoom = (roomId: string) => {
-    if (roomId === currentRoomId) return;
-
-    // If we were already in a room, optionally leave it (depends on backend logic, often not needed for simple apps)
+    if (activeChat?.id === roomId) return;
     
-    setCurrentRoomId(roomId);
-    setMessages([]); // Clear chat history when switching to a new room
+    // 🎯 FEATURE 3: Join room
+    socket.emit('join_room', roomId);
+    
+    setActiveChat({ type: 'room', id: roomId });
+    // Reset unread count for this scope
+    setUnreadCounts(prev => ({...prev, [roomId]: 0}));
+  };
 
-    // Tell the backend we are joining the room.
-    // The backend might respond by sending us message history or a join confirmation.
-    socket.emit('join_room', { roomId, user: currentUser });
+  const handleSelectUser = (user: {username: string; socketId: string}) => {
+    if (activeChat?.id === user.socketId) return;
+    
+    // 🎯 FEATURE 2: Select direct chat
+    setActiveChat({ type: "direct", id: user.socketId, name: user.username });
+    // Reset unread count
+    setUnreadCounts(prev => ({...prev, [user.socketId]: 0}));
   };
 
   // 4. Sending a Message
   const handleSendMessage = (content: string) => {
-    if (!currentUser || !currentRoomId) return;
+    if (!currentUser || !activeChat) return;
 
-    const newMessage: Message = {
-      id: generateId(), // Optimistic ID generation
-      senderId: currentUser.id,
-      content,
-      timestamp: new Date().toISOString(),
-      roomId: currentRoomId,
-    };
+    // ⚠️ CRITICAL EDGE CASES: Prevent sending empty messages
+    if (!content || content.trim() === '') return;
 
-    // Optimistic UI update: Show the message immediately on our end
-    setMessages(prev => [...prev, newMessage]);
-
-    // Send it to the server so it can broadcast to others
-    socket.emit('send_message', newMessage);
+    // Send it to the server so it can properly route it
+    socket.emit('send_message', {
+      message: content,
+      toUserId: activeChat.type === 'direct' ? activeChat.id : undefined,
+      roomId: activeChat.type === 'room' ? activeChat.id : undefined,
+      senderName: currentUser.name,
+      from: socket.id
+    });
   };
 
-  // 5. Room Creation Logic (Phase 1 Frontend-Only Logic)
-  // These modify the state optimistically. In a real app, they would emit to the server.
+  // 5. Room Creation Logic
   const handleCreateGroup = (name: string, additionalMembers: string[]) => {
     if (!currentUser) return;
-    
-    // We mock the additional users securely by name
     const members: User[] = [
       currentUser,
       ...additionalMembers.map(mName => ({
@@ -123,42 +195,94 @@ export default function ChatApp() {
         avatar: generateDiceBearAvatar(mName)
       }))
     ];
-
-    const newRoom: Room = {
-      id: generateId(),
-      name,
-      type: 'group',
-      members
-    };
-
-    // Update rooms list and auto-select
+    const newRoom: Room = { id: generateId(), name, type: 'group', members };
     setRooms(prev => [...prev, newRoom]);
     handleSelectRoom(newRoom.id);
   };
 
   const handleCreatePrivateChat = (username: string) => {
     if (!currentUser) return;
-
     const newRoom: Room = {
       id: generateId(),
-      name: username, // For 1-on-1, using their name makes sense
+      name: username, 
       type: 'private',
       members: [
         currentUser,
-        {
-          id: generateId(),
-          name: username,
-          avatar: generateDiceBearAvatar(username)
-        }
+        { id: generateId(), name: username, avatar: generateDiceBearAvatar(username) }
       ]
     };
-
-    // Update rooms list and auto-select
     setRooms(prev => [...prev, newRoom]);
     handleSelectRoom(newRoom.id);
   };
 
-  // Prevent flashing the UI before the session check is complete
+  // --- ALL HOOKS HERE (TOP LEVEL ONLY) --- //
+
+  /*
+   * COMMENT REQUIRED:
+   * Why hooks cannot be conditional (e.g. inside if statements or after early returns):
+   * - React tracks hooks by their call order across renders using an internal array structure. 
+   * - If a hook is conditionally skipped (via 'if' or an early return like `if (isInitializing) return`), 
+   *   React loses track of the execution order, mismatching state indexes and crashing with "Rendered more hooks than during the previous render."
+   * Why logic should be inside the hook instead:
+   * - By always calling the hook unconditionally, we satisfy React's linked-list architecture.
+   * - Inside the hook block, we use standard logic `if (!activeChat... return;)` to safely guard execution without breaking React.
+   */
+  useEffect(() => {
+    if (!activeChat?.id) return;
+
+    // SAFE OPTIONAL ACCESS
+    const currentUnread = unreadCounts?.[activeChat.id] || 0;
+    
+    // AVOID STATE UPDATE LOOPS: only update if it is greater than 0
+    if (currentUnread > 0) {
+      setUnreadCounts(prev => ({
+        ...prev,
+        [activeChat.id]: 0
+      }));
+    }
+  }, [activeChat, unreadCounts]);
+
+  /*
+   * 🎯 CHAT FILTERING (IMPORTANT)
+   * COMMENT REQUIRED:
+   * Why filtering is done at render level:
+   * - Keeps the raw messages bucket (global store) completely independent of UI state.
+   * - It is highly flexible. We can dynamically re-evaluate what messages belong to the chat instantly.
+   * Why storing all messages is necessary:
+   * - We guarantee that switching tabs (or opening a chat later) immediately presents all past messages for that session, as the data was constantly archived in the background globally.
+   */
+  const filteredMessages = useMemo(() => {
+    if (!activeChat) return [];
+
+    return messages.filter(msg => {
+      // DIRECT CHAT
+      if (activeChat.type === "direct") {
+        return msg.from === activeChat.id || msg.to === activeChat.id;
+      }
+      // ROOM CHAT
+      if (activeChat.type === "room") {
+        return msg.roomId === activeChat.id;
+      }
+      return false;
+    });
+  }, [messages, activeChat]);
+
+  const activeRoomContext = useMemo(() => {
+    return activeChat?.type === 'room' 
+      ? rooms.find(r => r.id === activeChat.id) || null
+      : activeChat && currentUser ? {
+          id: activeChat.id,
+          name: activeChat.name || "Direct Message",
+          type: "private" as const,
+          members: [
+            { id: activeChat.id, name: activeChat.name || "User", avatar: generateDiceBearAvatar(activeChat.name || "User") }, 
+            currentUser
+          ]
+        } : null;
+  }, [activeChat, rooms, currentUser]);
+
+  // ❌ NO HOOKS BELOW THIS LINE 
+
   if (isInitializing) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50">
@@ -166,8 +290,6 @@ export default function ChatApp() {
       </div>
     );
   }
-
-  const currentRoom = rooms.find(r => r.id === currentRoomId) || null;
 
   return (
     <>
@@ -177,15 +299,19 @@ export default function ChatApp() {
       <ChatLayout currentUser={currentUser}>
         <Sidebar 
           rooms={rooms} 
-          currentRoomId={currentRoomId} 
+          currentRoomId={activeChat?.type === 'room' ? activeChat.id : null}
+          activeChat={activeChat}
+          onlineUsers={onlineUsers}
+          unreadCounts={unreadCounts}
+          onSelectUser={handleSelectUser}
           onSelectRoom={handleSelectRoom} 
           onCreateGroup={handleCreateGroup}
           onCreatePrivate={handleCreatePrivateChat}
         />
         <ChatWindow 
-          currentRoom={currentRoom}
-          messages={messages}
-          currentUser={currentUser!}
+          currentRoom={activeRoomContext}
+          messages={filteredMessages}
+          currentUser={{...currentUser, id: socket.id || currentUser.id }} // Ensure we match Socket IDs for self-recognition
           onSendMessage={handleSendMessage}
         />
       </ChatLayout>

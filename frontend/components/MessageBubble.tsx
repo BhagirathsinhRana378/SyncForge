@@ -20,47 +20,42 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   sender,
   showAvatar = true 
 }) => {
+  /*
+   * ARCHITECTURE COMMENT:
+   * Why UI must reflect message ownership:
+   * - Using distinct visual ownership properties (like specific alignments, distinct background colors, and labeling "You") 
+   *   anchors cognitive clarity in the read flow. It prevents context collapse when multiple people chat rapidly.
+   */
   return (
-    <div className={`flex w-full mb-3 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex items-end gap-2 w-full mb-3 ${isOwnMessage ? "justify-end" : "justify-start"}`}>
       
       {!isOwnMessage && showAvatar && sender && (
-        <div className="mr-3 flex-shrink-0 flex items-start mt-1">
-          <Avatar src={sender.avatar} alt={sender.name} size="md" />
-        </div>
+        <img
+          src={sender.avatar}
+          alt={sender.name}
+          className="w-6 h-6 rounded-full mb-1 flex-shrink-0"
+        />
       )}
       
       {!isOwnMessage && !showAvatar && (
-        <div className="w-8 mr-3 flex-shrink-0" />
+        <div className="w-6 mr-1 flex-shrink-0" />
       )}
 
-      <div className={`max-w-[75%] flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}>
-        {!isOwnMessage && sender && showAvatar && (
-          <div className="flex items-baseline space-x-2 mb-1 mr-1">
-            <span className="text-[13px] font-semibold text-gray-900">{sender.name}</span>
-            <span className="text-[10px] text-gray-400">{formatTime(message.timestamp)}</span>
-          </div>
+      <div className={`
+        max-w-[65%] px-4 py-2 rounded-2xl text-sm shadow-sm flex flex-col
+        ${isOwnMessage 
+          ? "bg-blue-500 text-white rounded-br-none" 
+          : "bg-gray-200 text-gray-900 rounded-bl-none"}
+      `}>
+        {sender && showAvatar && (
+          <p className="text-xs font-semibold mb-1 opacity-80">
+            {isOwnMessage ? "You" : sender.name}
+          </p>
         )}
-        
-        <div 
-          // SaaS style message bubbles: lg border radius, clean borders.
-          className={`px-3.5 py-2 rounded-xl text-[14px] leading-relaxed relative ${
-            isOwnMessage 
-              ? 'bg-gray-200 text-gray-900' 
-              : 'bg-white border text-gray-900 border-gray-200 shadow-sm'
-          }`}
-        >
-          {message.content}
-        </div>
-        
-        {/* If own message, we put time under it, or inside. For simplicity, just small text below. */}
-        {isOwnMessage && (
-          <div className="mt-1 flex items-center justify-end space-x-1 mr-1">
-            <span className="text-[10px] text-gray-400">
-              {formatTime(message.timestamp)}
-            </span>
-          </div>
-        )}
-
+        <p className="leading-relaxed whitespace-pre-wrap">{message.message}</p>
+        <span className="text-[10px] opacity-70 block text-right mt-1">
+          {formatTime(message.time)}
+        </span>
       </div>
     </div>
   );
