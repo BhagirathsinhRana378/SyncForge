@@ -29,10 +29,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <div className={`flex items-end gap-2 w-full mb-3 ${isOwnMessage ? "justify-end" : "justify-start"}`}>
       
-      {!isOwnMessage && showAvatar && sender && (
+      {!isOwnMessage && showAvatar && (message.avatar || sender?.avatar) && (
         <img
-          src={sender.avatar}
-          alt={sender.name}
+          src={message.avatar || sender?.avatar}
+          alt={message.fromName || sender?.name}
           className="w-6 h-6 rounded-full mb-1 flex-shrink-0"
         />
       )}
@@ -47,9 +47,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           ? "bg-blue-500 text-white rounded-br-none" 
           : "bg-gray-200 text-gray-900 rounded-bl-none"}
       `}>
-        {sender && showAvatar && (
+        {(message.fromName || sender?.name) && showAvatar && (
           <p className="text-xs font-semibold mb-1 opacity-80">
-            {isOwnMessage ? "You" : sender.name}
+            {isOwnMessage ? "You" : (message.fromName || sender?.name)}
           </p>
         )}
         <p className="leading-relaxed whitespace-pre-wrap">{message.message}</p>

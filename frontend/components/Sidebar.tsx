@@ -14,7 +14,6 @@ interface SidebarProps {
   onSelectUser?: (user: {username: string; socketId: string, avatar?: string}) => void;
   onSelectRoom: (roomId: string) => void;
   onCreateGroup: (name: string, members: string[]) => void;
-  onCreatePrivate: (username: string) => void;
 }
 
 // Sidebar Component
@@ -29,12 +28,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   unreadCounts = {},
   onSelectUser,
   onSelectRoom,
-  onCreateGroup,
-  onCreatePrivate
+  onCreateGroup
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-  const [isPrivateModalOpen, setIsPrivateModalOpen] = useState(false);
   
   // 🎯 FEATURE 1: Search functionality
   const [search, setSearch] = useState('');
@@ -83,16 +80,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <Hash size={14} className="text-gray-400" />
                   <span>Create Group</span>
-                </button>
-                <button
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                  onClick={() => {
-                    setIsPrivateModalOpen(true);
-                    setIsDropdownOpen(false);
-                  }}
-                >
-                  <MessageSquare size={14} className="text-gray-400" />
-                  <span>Start Private Chat</span>
                 </button>
               </div>
             )}
@@ -213,11 +200,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onCreateGroup={onCreateGroup} 
       />
       
-      <CreatePrivateChatModal 
-        isOpen={isPrivateModalOpen} 
-        onClose={() => setIsPrivateModalOpen(false)} 
-        onCreatePrivate={onCreatePrivate} 
-      />
     </>
   );
 };

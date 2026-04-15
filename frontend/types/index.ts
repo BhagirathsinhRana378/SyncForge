@@ -16,7 +16,8 @@ export interface Message {
   time: string; // ISO string representation of when the message was sent
   roomId?: string; // The ID of the Room where this message was sent (for room messages)
   to?: string; // The ID of the User to whom this message was sent (for direct messages)
-  senderName?: string; // Add sender name directly to simplify display
+  fromName?: string; // The name of the sender directly provided by backend
+  avatar?: string; // Avatar URL of the sender provided securely by the backend
 }
 
 // The Room type represents either a private 1-on-1 chat or a group chat.

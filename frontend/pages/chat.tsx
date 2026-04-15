@@ -103,11 +103,12 @@ export default function ChatApp() {
 
       /*
        * COMMENT REQUIRED:
-       * Why messages must be stored globally:
-       * - We want messages to always be received and tracked so they aren't lost if the user is looking at a different chat.
-       * - It enables unread counts and ensures data availability when the user switches tabs instantly.
-       * Why filtering should not happen here:
-       * - Storing all messages gives us complete chat history in a single source of truth. We filter at render-time.
+       * Why messages should not depend on active chat:
+       * - If we only pushed messages into state while a user is actively viewing that specific channel, 
+       *   all data sent entirely off-screen is permanently lost from the UI context.
+       * Why local-only state breaks real-time apps:
+       * - Real-time applications mean multiple sources of truth push simultaneously. 
+       *   Decoupling local logic (filtering) from the core receiver allows global storage consistency.
        */
       // ALWAYS store message, regardless of active chat
       setMessages((prev) => [...prev, data]);
@@ -123,6 +124,11 @@ export default function ChatApp() {
     };
     
     socket.on('receive_message', receiveMessageHandler);
+
+    // 🎯 FIX 4: FRONTEND GROUP SYNC
+    socket.on('group_created', (group: Room) => {
+      setRooms(prev => [...prev, group]);
+    });
 
     socket.on('room_updated', (updatedRoom: Room) => {
       setRooms(prevRooms => prevRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
@@ -141,6 +147,7 @@ export default function ChatApp() {
       socket.off('online_users');
       socket.off('room_list');
       socket.off('receive_message', receiveMessageHandler);
+      socket.off('group_created');
       socket.off('room_updated');
       socket.disconnect();
     };
@@ -150,7 +157,14 @@ export default function ChatApp() {
   const handleSelectRoom = (roomId: string) => {
     if (activeChat?.id === roomId) return;
     
-    // 🎯 FEATURE 3: Join room
+    // 🎯 FIX 5: ENSURE ROOM JOIN BEFORE MESSAGING
+    /*
+     * COMMENT:
+     * Why joining room is required before receiving messages:
+     * - The Socket.IO server isolates room broadcasts (io.to(roomId).emit) exclusively to sockets 
+     *   that have formally invoked `socket.join(roomId)`. If we skip this, the server correctly 
+     *   routes the message into the channel but our socket drops the packets because it isn't subscribed.
+     */
     socket.emit('join_room', roomId);
     
     setActiveChat({ type: 'room', id: roomId });
@@ -178,42 +192,30 @@ export default function ChatApp() {
     socket.emit('send_message', {
       message: content,
       toUserId: activeChat.type === 'direct' ? activeChat.id : undefined,
-      roomId: activeChat.type === 'room' ? activeChat.id : undefined,
-      senderName: currentUser.name,
-      from: socket.id
+      roomId: activeChat.type === 'room' ? activeChat.id : undefined
     });
   };
 
   // 5. Room Creation Logic
   const handleCreateGroup = (name: string, additionalMembers: string[]) => {
     if (!currentUser) return;
-    const members: User[] = [
-      currentUser,
-      ...additionalMembers.map(mName => ({
-        id: generateId(),
-        name: mName,
-        avatar: generateDiceBearAvatar(mName)
-      }))
-    ];
-    const newRoom: Room = { id: generateId(), name, type: 'group', members };
-    setRooms(prev => [...prev, newRoom]);
-    handleSelectRoom(newRoom.id);
+    
+    // We expect `additionalMembers` to be an array of socketIds for this flow
+    // Add current user's socket ID as well
+    const allMemberIds = [socket.id, ...additionalMembers];
+    
+    // Emit to server to handle joining everyone silently to the room channel
+    socket.emit("create_group", {
+      roomId: generateId(),
+      name,
+      members: allMemberIds
+    });
   };
 
-  const handleCreatePrivateChat = (username: string) => {
-    if (!currentUser) return;
-    const newRoom: Room = {
-      id: generateId(),
-      name: username, 
-      type: 'private',
-      members: [
-        currentUser,
-        { id: generateId(), name: username, avatar: generateDiceBearAvatar(username) }
-      ]
-    };
-    setRooms(prev => [...prev, newRoom]);
-    handleSelectRoom(newRoom.id);
-  };
+  // 🎯 FIX 9: DEBUG LOGS (MANDATORY)
+  useEffect(() => {
+    console.log("Rooms updated:", rooms);
+  }, [rooms]);
 
   // --- ALL HOOKS HERE (TOP LEVEL ONLY) --- //
 
@@ -306,7 +308,6 @@ export default function ChatApp() {
           onSelectUser={handleSelectUser}
           onSelectRoom={handleSelectRoom} 
           onCreateGroup={handleCreateGroup}
-          onCreatePrivate={handleCreatePrivateChat}
         />
         <ChatWindow 
           currentRoom={activeRoomContext}

@@ -94,37 +94,69 @@ io.on("connection", (socket) => {
     // Prevent sending empty messages
     if (!message || message.trim() === "") return;
 
-    // Standardized payload format
+    const user = onlineUsers.get(socket.id);
+
     const payload = {
       message,
       from: socket.id,
+      fromName: user?.username,
+      avatar: user?.avatar,
       to: toUserId,
       roomId,
-      senderName,
       time: new Date().toISOString()
     };
 
+    // ROOM MESSAGE
     if (roomId) {
-      // 🎯 FEATURE 3: Send room message
-      // Note: room broadcasts send to all in the room, including the sender if they joined it.
       io.to(roomId).emit("receive_message", payload);
-    } else if (toUserId) {
-      // 🎯 FEATURE 2: Send direct message
-      
-      /*
-       * ARCHITECTURE COMMENT:
-       * Why sender must receive message from server:
-       * - It ensures total consistency across all clients and synchronizes the exact state the backend processed.
-       * Why UI should not assume message delivery:
-       * - Optimistic UI updates (where the frontend assumes success instantly) can result in ghost messages
-       *   if the connection drops or the server rejects the payload. Server confirmation is the single source of truth.
-       * 
-       * ⚠️ CRITICAL EDGE CASE:
-       * - Without `socket.emit("receive_message", payload);`, Sender won’t see their own message instantly!
-       */
-      io.to(toUserId).emit("receive_message", payload);
-      socket.emit("receive_message", payload); // send back to sender
     }
+    
+    // DIRECT MESSAGE
+    if (toUserId) {
+      io.to(toUserId).emit("receive_message", payload);
+    }
+
+    /*
+     * ARCHITECTURE COMMENT:
+     * Why server is source of truth:
+     * - Clients shouldn't trust their own local state. Emitting the message back confirms that the backend 
+     *   received and processed it. This ensures all clients are synchronized globally.
+     * Why sender must also receive message:
+     * - The local frontend doesn't append messages optimistically anymore. The sender waits for this exact broadcast
+     *   to render their own message in the global store.
+     */
+    // ALWAYS send back to sender (CRITICAL)
+    socket.emit("receive_message", payload);
+  });
+
+  /*
+   * 🎯 FIX 3: GROUP CREATION BROKEN (CRITICAL)
+   * ARCHITECTURE COMMENT:
+   * Why rooms must be joined server-side:
+   * - A client cannot force other clients to join a room. The backend orchestrates connections,
+   *   so it loops through all target member IDs and forcibly attaches their sockets to the 'roomId' channel.
+   * Why emitting group_created is necessary:
+   * - Once sockets are joined to the room behind the scenes, the frontends don't magically know a group was made.
+   *   We emit `group_created` strictly to notify the frontends to add the group to their UI visual state globally.
+   */
+  socket.on("create_group", ({ roomId, members }) => {
+    console.log("Groups:", roomId, members);
+    
+    members.forEach((memberId: string) => {
+      const memberSocket = io.sockets.sockets.get(memberId);
+
+      if (memberSocket) {
+        memberSocket.join(roomId);
+      }
+    });
+
+    // Notify all members
+    members.forEach((memberId: string) => {
+      io.to(memberId).emit("group_created", {
+        roomId,
+        members
+      });
+    });
   });
 
   /*
