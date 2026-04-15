@@ -13,7 +13,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*",// by doing this we are allowing the frontend to connect to the backend
+    // at any port number
   },
 });
 
