@@ -2,6 +2,12 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import dotenv from "dotenv";
+import User from "./models/User.js";
+import connectDB from "./config/db.js";
+
+dotenv.config();
+connectDB();
 
 const app = express();
 app.use(cors());
@@ -36,42 +42,66 @@ io.on("connection", (socket) => {
    * 🎯 FEATURE 1: On user registration
    * Event-driven system flow: Frontend emits 'register_user' -> Backend processes and stores identity -> Broadcasts state.
    */
-  socket.on("register_user", (username: string) => {
-    // 🎯 FIX 3: AVATAR SYSTEM
-    /*
-     * ARCHITECTURE COMMENT:
-     * Why avatar should be generated server-side:
-     * - Generating avatars server-side ensures the user's avatar is identical across all clients 
-     *   without requiring each client to run independent generation logic.
-     * Why consistent identity matters:
-     * - Identity must be verified and consistent. If a client injects their own malicious avatar URL, 
-     *   it can break the UI or impersonate others. Server guarantees the schema.
-     */
-    const avatar = `https://ui-avatars.com/api/?name=${username}&background=random&color=fff`;
+  // socket.on("register_user", (username: string) => {
+  //   // 🎯 FIX 3: AVATAR SYSTEM
+  //   /*
+  //    * ARCHITECTURE COMMENT:
+  //    * Why avatar should be generated server-side:
+  //    * - Generating avatars server-side ensures the user's avatar is identical across all clients 
+  //    *   without requiring each client to run independent generation logic.
+  //    * Why consistent identity matters:
+  //    * - Identity must be verified and consistent. If a client injects their own malicious avatar URL, 
+  //    *   it can break the UI or impersonate others. Server guarantees the schema.
+  //    */
+  //   const avatar = `https://ui-avatars.com/api/?name=${username}&background=random&color=fff`;
 
-    // Map socket.id to the user details
-    onlineUsers.set(socket.id, {
+  //   // Map socket.id to the user details
+  //   onlineUsers.set(socket.id, {
+  //     username,
+  //     socketId: socket.id,
+  //     avatar
+  //   });
+
+  //   console.log(`User connected: ${username} (${socket.id})`);
+  //   console.log("Online users:", onlineUsers);
+
+  //   /*
+  //    * IMPORTANT COMMENT:
+  //    * Why registration must happen AFTER connection:
+  //    * - Socket connection ≠ user identity. A connection only establishes a network pipe.
+  //    * - The username must be manually registered because the backend needs to store a mapping 
+  //    *   of socketId -> user to tie the transport layer to the app's business logic.
+  //    * Why socket.id alone is not enough:
+  //    * - socket.id is just a random ephemeral string. Without associating it with a username, 
+  //    *   the system cannot show who is online to other users or route messages meaningly.
+  //    */
+  //   io.emit("online_users", Array.from(onlineUsers.values()));
+  // });
+
+socket.on("register_user", async (username: string) => {
+  const avatar = `https://ui-avatars.com/api/?name=${username}&background=random&color=fff`;
+
+  let user = await User.findOne({ username });
+
+  if (!user) {
+    user = await User.create({
       username,
-      socketId: socket.id,
-      avatar
+      avatar,
+      socketId: socket.id
     });
+  } else {
+    user.socketId = socket.id;
+    await user.save();
+  }
 
-    console.log(`User connected: ${username} (${socket.id})`);
-    console.log("Online users:", onlineUsers);
-
-    /*
-     * IMPORTANT COMMENT:
-     * Why registration must happen AFTER connection:
-     * - Socket connection ≠ user identity. A connection only establishes a network pipe.
-     * - The username must be manually registered because the backend needs to store a mapping 
-     *   of socketId -> user to tie the transport layer to the app's business logic.
-     * Why socket.id alone is not enough:
-     * - socket.id is just a random ephemeral string. Without associating it with a username, 
-     *   the system cannot show who is online to other users or route messages meaningly.
-     */
-    io.emit("online_users", Array.from(onlineUsers.values()));
+  onlineUsers.set(socket.id, {
+    username: user.username,
+    socketId: socket.id,
+    avatar: user.avatar
   });
 
+  io.emit("online_users", Array.from(onlineUsers.values()));
+});
   /*
    * 🎯 FEATURE 3: Join room
    * How Socket.IO rooms work internally:
