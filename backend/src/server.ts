@@ -33,7 +33,7 @@ const io = new Server(server, {
  * - If the server restarts, all in-memory data (users) is lost.
  * - It doesn't scale to multiple server instances (Node.js clustering) without a pub/sub adapter (like Redis).
  */
-const onlineUsers = new Map<string, { username: string; socketId: string }>();
+const onlineUsers = new Map<string, { username: string; socketId: string; avatar?: string }>();
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -135,6 +135,8 @@ socket.on("register_user", async (username: string) => {
       roomId,
       time: new Date().toISOString()
     };
+
+    console.log("MESSAGE PAYLOAD:", payload);
 
     // ROOM MESSAGE
     if (roomId) {

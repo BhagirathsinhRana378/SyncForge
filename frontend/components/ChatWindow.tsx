@@ -43,12 +43,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const getSender = (message: Message): User | undefined => {
     let user = currentRoom.members.find(m => m.id === message.from);
-    if (!user && message.senderName) {
+    if (!user && message.fromName) {
       user = { 
         id: message.from, 
-        name: message.senderName, 
+        name: message.fromName, 
         // fallback avatar if direct chat doesn't push avatar string
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${message.senderName}`
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${message.fromName}`
       };
     }
     return user;

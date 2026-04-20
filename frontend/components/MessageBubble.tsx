@@ -20,6 +20,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   sender,
   showAvatar = true 
 }) => {
+  console.log("Rendering avatar:", message.avatar || sender?.avatar);
+
   /*
    * ARCHITECTURE COMMENT:
    * Why UI must reflect message ownership:
@@ -29,11 +31,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <div className={`flex items-end gap-2 w-full mb-3 ${isOwnMessage ? "justify-end" : "justify-start"}`}>
       
-      {!isOwnMessage && showAvatar && (message.avatar || sender?.avatar) && (
+      {!isOwnMessage && showAvatar && (
         <img
-          src={message.avatar || sender?.avatar}
-          alt={message.fromName || sender?.name}
-          className="w-6 h-6 rounded-full mb-1 flex-shrink-0"
+          src={message.avatar || sender?.avatar || "https://via.placeholder.com/40"}
+          alt={message.fromName || sender?.name || "Avatar"}
+          className="w-8 h-8 rounded-full object-cover mb-1 flex-shrink-0"
+          onError={(e) => e.currentTarget.src = "https://via.placeholder.com/40"}
         />
       )}
       

@@ -81,7 +81,7 @@ export default function ChatApp() {
     // 🎯 FRONTEND FIX 2: RECEIVE ONLINE USERS
     socket.on('online_users', (users: {username: string; socketId: string}[]) => {
       // ⚠️ DEBUG REQUIREMENTS:
-      console.log("Users received:", users);
+      console.log("ONLINE USERS:", users);
       // Filter out our own user to prevent chatting with ourselves
       setOnlineUsers(users.filter(u => u.socketId !== socket.id));
     });
@@ -99,7 +99,8 @@ export default function ChatApp() {
 
     // 🎯 FRONTEND FIX 6: RECEIVE MESSAGE
     const receiveMessageHandler = (data: Message) => {
-      console.log("Incoming message:", data);
+      console.log("RECEIVED MESSAGE:", data);
+      console.log("STORED MESSAGE:", data);
 
       /*
        * COMMENT REQUIRED:
@@ -285,7 +286,7 @@ export default function ChatApp() {
 
   // ❌ NO HOOKS BELOW THIS LINE 
 
-  if (isInitializing) {
+  if (isInitializing || !currentUser) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50">
         <span className="block w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></span>
