@@ -2,11 +2,19 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import User from "./models/user.ts";
+import connectDB from "./config/db.ts";
 import dotenv from "dotenv";
-import User from "./models/User.js";
-import connectDB from "./config/db.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+
+
+// Get the directory of the current file (since you are using ES modules)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Explicitly bind the path to the parent directory's .env file
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 connectDB();
 
 const app = express();
@@ -33,7 +41,7 @@ const io = new Server(server, {
  * - If the server restarts, all in-memory data (users) is lost.
  * - It doesn't scale to multiple server instances (Node.js clustering) without a pub/sub adapter (like Redis).
  */
-const onlineUsers = new Map<string, { username: string; socketId: string; avatar?: string }>();
+const onlineUsers = new Map<string, { username: string; socketId: string; avatar: string }>();
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -126,17 +134,27 @@ socket.on("register_user", async (username: string) => {
 
     const user = onlineUsers.get(socket.id);
 
+    if (!user) {
+      console.error("User not found in onlineUsers:", socket.id);
+      return;
+    }
+
     const payload = {
-      message,
-      from: socket.id,
-      fromName: user?.username,
-      avatar: user?.avatar,
-      to: toUserId,
+      message: message.trim(),
+      senderId: socket.id,
+      senderName: user.username,
+      senderAvatar: user.avatar,
       roomId,
+      toUserId,
       time: new Date().toISOString()
     };
 
-    console.log("MESSAGE PAYLOAD:", payload);
+    if (!payload.senderAvatar) {
+      console.error("Payload missing senderAvatar");
+      return;
+    }
+
+    console.log("FINAL PAYLOAD:", payload);
 
     // ROOM MESSAGE
     if (roomId) {

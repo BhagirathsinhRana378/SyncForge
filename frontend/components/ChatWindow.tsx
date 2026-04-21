@@ -42,13 +42,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   const getSender = (message: Message): User | undefined => {
-    let user = currentRoom.members.find(m => m.id === message.from);
-    if (!user && message.fromName) {
+    let user = currentRoom.members.find(m => m.id === message.senderId);
+    if (!user && message.senderName) {
       user = { 
-        id: message.from, 
-        name: message.fromName, 
+        id: message.senderId, 
+        name: message.senderName, 
         // fallback avatar if direct chat doesn't push avatar string
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${message.fromName}`
+        avatar: message.senderAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${message.senderName}`
       };
     }
     return user;
@@ -82,7 +82,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           ) : (
             messages.map((message, index) => {
-              const isOwnMessage = message.from === currentUser.id;
+              const isOwnMessage = message.senderId === currentUser.id;
               const originalSender = getSender(message);
               
               const sender = originalSender ? {
@@ -91,7 +91,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               } : undefined;
               
               const previousMessage = index > 0 ? messages[index - 1] : null;
-              const isNewSenderSequence = !previousMessage || previousMessage.from !== message.from;
+              const isNewSenderSequence = !previousMessage || previousMessage.senderId !== message.senderId;
 
               return (
                 <MessageBubble

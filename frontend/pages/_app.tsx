@@ -1,7 +1,7 @@
 import type { AppProps } from 'next/app';
 import '../styles/globals.css';
 import { useEffect } from 'react';
-import { socket } from '../utils/socket';
+import { socket } from '../utils/socket.ts';
 
 export default function App({ Component, pageProps }: AppProps) {
 

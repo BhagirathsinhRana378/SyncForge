@@ -99,7 +99,7 @@ export default function ChatApp() {
 
     // 🎯 FRONTEND FIX 6: RECEIVE MESSAGE
     const receiveMessageHandler = (data: Message) => {
-      console.log("RECEIVED MESSAGE:", data);
+      console.log("RECEIVED:", data);
       console.log("STORED MESSAGE:", data);
 
       /*
@@ -115,8 +115,8 @@ export default function ChatApp() {
       setMessages((prev) => [...prev, data]);
       
       // Update unread counts if we are not actively in that chat
-      if (data.from !== socket.id) {
-        const chatScopeId = data.roomId ? data.roomId : data.from;
+      if (data.senderId !== socket.id) {
+        const chatScopeId = data.roomId ? data.roomId : data.senderId;
         setUnreadCounts(prev => ({
           ...prev,
           [chatScopeId]: (prev[chatScopeId] || 0) + 1
@@ -260,7 +260,7 @@ export default function ChatApp() {
     return messages.filter(msg => {
       // DIRECT CHAT
       if (activeChat.type === "direct") {
-        return msg.from === activeChat.id || msg.to === activeChat.id;
+        return msg.senderId === activeChat.id || msg.toUserId === activeChat.id;
       }
       // ROOM CHAT
       if (activeChat.type === "room") {

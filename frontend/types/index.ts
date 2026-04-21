@@ -11,13 +11,13 @@ export interface User {
 // The Message type represents a single chat message sent by a user in a specific room.
 export interface Message {
   id?: string; // Optional if backend doesn't send it initially
-  from: string; // The ID of the User who sent this message
+  senderId: string; // The ID of the User who sent this message
   message: string; // The actual text content of the message
   time: string; // ISO string representation of when the message was sent
   roomId?: string; // The ID of the Room where this message was sent (for room messages)
-  to?: string; // The ID of the User to whom this message was sent (for direct messages)
-  fromName?: string; // The name of the sender directly provided by backend
-  avatar?: string; // Avatar URL of the sender provided securely by the backend
+  toUserId?: string; // The ID of the User to whom this message was sent (for direct messages)
+  senderName: string; // The name of the sender directly provided by backend
+  senderAvatar: string; // Avatar URL of the sender provided securely by the backend
 }
 
 // The Room type represents either a private 1-on-1 chat or a group chat.

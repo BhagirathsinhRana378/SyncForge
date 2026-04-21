@@ -20,7 +20,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   sender,
   showAvatar = true 
 }) => {
-  console.log("Rendering avatar:", message.avatar || sender?.avatar);
+  console.log("Rendering avatar:", message.senderAvatar || sender?.avatar);
 
   /*
    * ARCHITECTURE COMMENT:
@@ -33,10 +33,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       
       {!isOwnMessage && showAvatar && (
         <img
-          src={message.avatar || sender?.avatar || "https://via.placeholder.com/40"}
-          alt={message.fromName || sender?.name || "Avatar"}
-          className="w-8 h-8 rounded-full object-cover mb-1 flex-shrink-0"
-          onError={(e) => e.currentTarget.src = "https://via.placeholder.com/40"}
+          src={message.senderAvatar || "https://ui-avatars.com/api/?name=User"}
+          className="w-8 h-8 rounded-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = "https://ui-avatars.com/api/?name=User";
+          }}
         />
       )}
       
@@ -50,9 +51,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           ? "bg-blue-500 text-white rounded-br-none" 
           : "bg-gray-200 text-gray-900 rounded-bl-none"}
       `}>
-        {(message.fromName || sender?.name) && showAvatar && (
+        {(message.senderName || sender?.name) && showAvatar && (
           <p className="text-xs font-semibold mb-1 opacity-80">
-            {isOwnMessage ? "You" : (message.fromName || sender?.name)}
+            {isOwnMessage ? "You" : (message.senderName || sender?.name)}
           </p>
         )}
         <p className="leading-relaxed whitespace-pre-wrap">{message.message}</p>
